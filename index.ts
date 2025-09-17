@@ -23,7 +23,7 @@ db.run(
 
 // Initialize the GoogleGenAI client with your API key
 const ai = new GoogleGenAI({
-  apiKey: "AIzaSyD55ISrrVFy1xS09jAzST_LFVE0zVmafhQ",
+  apiKey: "",
 });
 
 async function askAi(content: string) {
