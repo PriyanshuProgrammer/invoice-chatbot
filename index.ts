@@ -1,12 +1,29 @@
 import { GoogleGenAI } from "@google/genai";
 import fs from "fs";
+import sql from "sql.js";
 const pdf = require("pdf-parse");
 
-let files = fs.readdirSync("./invoices");
+type TInvoices = {
+  vendor: string;
+  invoice_number: string;
+  invoice_date: string;
+  due_date: string;
+  total: string;
+};
+
+const files = fs.readdirSync("./invoices");
+// create a simple inmemory database
+const SQL = await sql();
+const db = new SQL.Database();
+
+// create a invoice table
+db.run(
+  "CREATE TABLE invoice (vendor TEXT, invoice_number TEXT,invoice_date TEXT,due_date TEXT,total REAL);"
+);
 
 // Initialize the GoogleGenAI client with your API key
 const ai = new GoogleGenAI({
-  apiKey: "",
+  apiKey: "AIzaSyD55ISrrVFy1xS09jAzST_LFVE0zVmafhQ",
 });
 
 async function askAi(content: string) {
@@ -17,10 +34,10 @@ async function askAi(content: string) {
   return response.text;
 }
 
-const question = "What is the total amount due across all invoices?";
+const question = "What is sum of total due on invoices?";
 
 const invoiceContent = (content: string) => `
-        <Task>Parse the invoice data in form of javascript object as follows and make the answers are accurate, if you think you need some extra information for answer question correctly then tell us that.</Task>
+        <Task>Parse the invoice data in form of javascript object as follows.</Task>
         <format>
             {"vendor":"Amazon","invoice_number":"INV-0012","invoice_date":"2025-08-20","due_date":"2025-09-05","total":2450.00},
         </format>
@@ -29,15 +46,19 @@ const invoiceContent = (content: string) => `
         </RawInvoiceData>
     `;
 
-const invoiceQuestionContent = (content: string) => `
-        <Task>Based on the invoices below answer the following questions in short:</Task>
-        <Invoices>
-           ${content}
-        </Invoices>
-        <Question>
-            ${question}
-        </Question>
-    `;
+const questionContent = (question: string) => `
+      <Task>We have created a database with following schema. Now you need to write sql queries to find the answer for the question below. Make sure to only return sql query for sql.js library.</Task>
+      <schema>
+        Table: "invoice",
+      Columns: {
+        vendor: string;
+        invoice_number: string;
+        invoice_date: string;
+        due_date: string;
+        total: number;
+      }</schema>
+      <question>${question}</question>
+`;
 
 let rawInvoicesData: string[] = [];
 async function readInvoices() {
@@ -52,23 +73,33 @@ async function readInvoices() {
   }
 }
 
-let parsedInvoices: any[] = [];
 async function parseInvoices() {
   await readInvoices();
   console.log("Parsing Invoices...");
   for (let invoiceData of rawInvoicesData) {
     const response = await askAi(invoiceContent(invoiceData));
-    parsedInvoices.push(response);
+    let trimResponse = response
+      ?.trim()
+      .replaceAll("```", "")
+      .replace("json", "");
+    let data: TInvoices = JSON.parse(trimResponse as string);
+    db.run("INSERT INTO invoice VALUES (?, ?, ?, ?, ?)", [
+      data.vendor,
+      data.invoice_number,
+      data.invoice_date,
+      data.due_date,
+      data.total,
+    ]);
   }
 }
 
 async function answerQuestion() {
   await parseInvoices();
-  console.log("Answering Question...");
-  const response = await askAi(
-    invoiceQuestionContent(JSON.stringify(parsedInvoices))
-  );
-  console.log("Final Answer: ", response);
+  let response = await askAi(questionContent(question));
+  let trimResponse = response?.trim().replaceAll("```", "").replace("sql", "");
+  let dbResponse = db.exec(trimResponse as string);
+  //@ts-ignore
+  console.log("Response: ", dbResponse[0]?.values[0][0]);
 }
 
 answerQuestion();
