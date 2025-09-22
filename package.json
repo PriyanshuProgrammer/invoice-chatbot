@@ -13,6 +13,7 @@
     "@google/genai": "^1.19.0",
     "@types/pdf-parse": "^1.1.5",
     "@types/sql.js": "^1.4.9",
+    "fuse.js": "^7.1.0",
     "pdf-parse": "^1.1.1",
     "sql.js": "1.1.0"
   }
