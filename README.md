@@ -2,6 +2,9 @@
 
 This project is an AI-powered agent that extracts and analyzes invoice data from PDF files using Google Gemini and answers questions about the invoices.
 
+## Demo
+[Demo](https://github-production-user-asset-6210df.s3.amazonaws.com/68071219/492140237-f5d6f668-7a31-48e8-aadf-9107f259b4e0.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20250922%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20250922T051231Z&X-Amz-Expires=300&X-Amz-Signature=13bddb37033ff4693bc00e9ee0463fa0c2e4f253df427ca56a78e023fe4a024a&X-Amz-SignedHeaders=host)
+
 ## Features
 - Reads all PDF invoices from the `invoices/` directory
 - Extracts invoice data using Google Gemini AI
