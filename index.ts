@@ -29,6 +29,7 @@ const ai = new GoogleGenAI({
   apiKey: "AIzaSyD55ISrrVFy1xS09jAzST_LFVE0zVmafhQ",
 });
 
+// to get the closest match from db
 function fuzzyMatch(input: string, choices: string[]): string | null {
   const fuse = new Fuse(choices, { threshold: 0.4 });
   const result = fuse.search(input);
@@ -46,6 +47,7 @@ function getUniqueVendorsAndCustomers() {
   return { vendors, customers };
 }
 
+// tools
 function getInvoiceSum({
   customer,
   vendor,
@@ -85,7 +87,44 @@ const getInvoiceSumFunctionDeclaration: FunctionDeclaration = {
   },
 };
 
+const executeSQLQueryFunctionDeclaration: FunctionDeclaration = {
+  name: "executeSQLQuery",
+  description: "Execute a raw SQL query on the database and return the results",
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      query: {
+        type: Type.STRING,
+        description:
+          "The SQL query to execute. Should be a valid SQL statement like SELECT, INSERT, UPDATE, DELETE, etc.",
+      },
+      values: {
+        type: Type.ARRAY,
+        items: { type: Type.TYPE_UNSPECIFIED },
+        description:
+          "Optional array of values to safely bind to the query (to prevent SQL injection)",
+      },
+    },
+    required: ["query"],
+  },
+};
+
+// Example function implementation
+function executeSQLQuery({ query, values }: { query: string; values?: any[] }) {
+  if (values && values.length) {
+    // If values are provided, use parameterized query
+    const dbResponse = db.exec(query, values);
+    return dbResponse[0]?.values[0];
+  } else {
+    // Otherwise, execute raw query
+    const dbResponse = db.exec(query);
+    return dbResponse[0]?.values[0];
+  }
+}
+
 const question = "How much test business owes demo";
+// const question = "give the list of all customers";
+// const question = "give the list of all vendors";
 
 const invoiceContent = (content: string) => `
         <Task>Parse the invoice data in form of javascript object as follows.</Task>
@@ -126,7 +165,8 @@ async function readInvoices() {
 
 async function parseInvoices() {
   await readInvoices();
-  console.log("Parsing Invoices...");
+  console.log("Question: ", question);
+  console.log("Thinking...");
   for (let invoiceData of rawInvoicesData) {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
@@ -156,7 +196,10 @@ async function answerQuestion() {
     config: {
       tools: [
         {
-          functionDeclarations: [getInvoiceSumFunctionDeclaration],
+          functionDeclarations: [
+            getInvoiceSumFunctionDeclaration,
+            executeSQLQueryFunctionDeclaration,
+          ],
         },
       ],
     },
@@ -166,25 +209,32 @@ async function answerQuestion() {
     switch (functionalCall?.name) {
       case "getInvoiceSum": {
         //@ts-ignore
-        const res = getInvoiceSum({customer: functionalCall.args.customer,vendor: functionalCall.args.vendor,
+        const res = getInvoiceSum({
+          customer: functionalCall.args.customer,
+          vendor: functionalCall.args.vendor,
         });
         if (res) {
           console.log(res);
         } else {
           console.log("columns does not exist in database");
         }
+        return;
+      }
+      case "executeSQLQuery": {
+        const res = executeSQLQuery({ query: functionalCall.args.query });
+        if (res) {
+          console.log(res);
+        } else {
+          console.log("Error executing sql query");
+        }
+        return;
       }
       default: {
+        return;
       }
     }
   } else {
-    let trimResponse = response.text
-      ?.trim()
-      .replaceAll("```", "")
-      .replace("sql", "");
-    let dbResponse = db.exec(trimResponse as string);
-    //@ts-ignore
-    console.log("Response: ", dbResponse[0]?.values[0][0]);
+    console.log("LLM response issue");
   }
 }
 

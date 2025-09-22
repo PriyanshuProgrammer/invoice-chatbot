@@ -6,7 +6,8 @@ This project is an AI-powered agent that extracts and analyzes invoice data from
 - Reads all PDF invoices from the `invoices/` directory
 - Extracts invoice data using Google Gemini AI
 - Put all the data in the sql in-memory database
-- Ask sql queries from AI to run and get answer for the question from db.
+- Built tools for ai to run sql queries and to solve some complex query problems.
+- Used fuse.js to get to closest data from db, because user might mispelled the prompt.
 
 ## Prerequisites
 - Node.js (v18 or higher recommended)
